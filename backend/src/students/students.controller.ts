@@ -1,0 +1,45 @@
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { StudentOwnershipGuard } from '../common/guards/student-ownership.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { StudentsService } from './students.service';
+import { CreateStudentDto, UpdateStudentDto } from './dto/students.dto';
+
+@Controller('students')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class StudentsController {
+  constructor(private studentsService: StudentsService) {}
+
+  @Get()
+  findAll(@CurrentUser() user: any) {
+    return this.studentsService.findAllForUser(user.sub, user.role, user.schoolId);
+  }
+
+  @Get(':studentId')
+  @UseGuards(StudentOwnershipGuard)
+  findOne(@Param('studentId') studentId: string) {
+    return this.studentsService.findOne(studentId);
+  }
+
+  @Post()
+  @Roles('owner', 'teacher')
+  create(@Body() dto: CreateStudentDto, @CurrentUser() user: any) {
+    return this.studentsService.create(dto, user.sub, user.schoolId);
+  }
+
+  @Patch(':studentId')
+  @Roles('owner', 'teacher')
+  @UseGuards(StudentOwnershipGuard)
+  update(@Param('studentId') studentId: string, @Body() dto: UpdateStudentDto, @CurrentUser() user: any) {
+    return this.studentsService.update(studentId, dto, user.sub);
+  }
+
+  @Delete(':studentId')
+  @Roles('owner', 'teacher')
+  @UseGuards(StudentOwnershipGuard)
+  remove(@Param('studentId') studentId: string, @CurrentUser() user: any) {
+    return this.studentsService.remove(studentId, user.sub);
+  }
+}

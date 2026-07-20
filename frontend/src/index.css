@@ -1,0 +1,5 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #F4F5F7; }

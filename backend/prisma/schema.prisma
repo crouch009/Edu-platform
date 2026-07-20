@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  owner
+  teacher
+  parent
+}
+
+enum UserStatus {
+  active
+  suspended
+}
+
+enum ReportStatus {
+  draft
+  published
+}
+
+enum AssessmentType {
+  exam
+  quiz
+  homework
+  participation
+}
+
+model School {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  users     User[]
+  students  Student[]
+  subjects  Subject[]
+  assessments Assessment[]
+
+  @@map("schools")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role
+  name         String
+  phone        String?
+  status       UserStatus @default(active)
+
+  schoolId     String   @map("school_id")
+  school       School   @relation(fields: [schoolId], references: [id])
+
+  totpSecret   String?  @map("totp_secret")
+  totpEnabled  Boolean  @default(false) @map("totp_enabled")
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  lastLoginAt  DateTime? @map("last_login_at")
+
+  // Teacher-side relations
+  studentsAsTeacher Student[] @relation("TeacherStudents")
+  reportsAuthored   Report[]  @relation("TeacherReports")
+  filesUploaded     ReportFile[] @relation("UploadedFiles")
+  shareLinksCreated ShareLink[]  @relation("CreatedShareLinks")
+  subjectsTaught    Subject[]    @relation("TeacherSubjects")
+  assessmentsCreated Assessment[] @relation("TeacherAssessments")
+
+  // Parent-side relations
+  studentsAsParent  Student[] @relation("ParentStudents")
+
+  auditLogs         AuditLog[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@map("users")
+}
+
+model Student {
+  id        String   @id @default(uuid())
+  name      String
+  grade     String?
+  className String?  @map("class_name")
+
+  schoolId  String   @map("school_id")
+  school    School   @relation(fields: [schoolId], references: [id])
+
+  teacherId String   @map("teacher_id")
+  teacher   User     @relation("TeacherStudents", fields: [teacherId], references: [id])
+
+  parentId  String?  @map("parent_id")
+  parent    User?    @relation("ParentStudents", fields: [parentId], references: [id])
+
+  reports   Report[]
+  grades    Grade[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("students")
+}
+
+model Report {
+  id        String   @id @default(uuid())
+  studentId String   @map("student_id")
+  student   Student  @relation(fields: [studentId], references: [id])
+
+  teacherId String   @map("teacher_id")
+  teacher   User     @relation("TeacherReports", fields: [teacherId], references: [id])
+
+  title     String
+  content   String
+  status    ReportStatus @default(draft)
+
+  files       ReportFile[]
+  shareLinks  ShareLink[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("reports")
+}
+
+model ReportFile {
+  id         String   @id @default(uuid())
+  reportId   String   @map("report_id")
+  report     Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  fileKey    String   @map("file_key")
+  fileType   String   @map("file_type")
+  fileSize   Int      @map("file_size")
+
+  uploadedBy String   @map("uploaded_by")
+  uploader   User     @relation("UploadedFiles", fields: [uploadedBy], references: [id])
+
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("report_files")
+}
+
+model ShareLink {
+  id        String   @id @default(uuid())
+  reportId  String   @map("report_id")
+  report    Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+
+  createdBy String   @map("created_by")
+  creator   User     @relation("CreatedShareLinks", fields: [createdBy], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("share_links")
+}
+
+model Subject {
+  id       String   @id @default(uuid())
+  name     String
+
+  schoolId String   @map("school_id")
+  school   School   @relation(fields: [schoolId], references: [id])
+
+  teacherId String  @map("teacher_id")
+  teacher  User     @relation("TeacherSubjects", fields: [teacherId], references: [id])
+
+  assessments Assessment[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("subjects")
+}
+
+model Assessment {
+  id       String   @id @default(uuid())
+  title    String
+  type     AssessmentType @default(exam)
+  maxScore Float    @map("max_score")
+  date     DateTime
+
+  subjectId String  @map("subject_id")
+  subject  Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  teacherId String  @map("teacher_id")
+  teacher  User     @relation("TeacherAssessments", fields: [teacherId], references: [id])
+
+  schoolId String   @map("school_id")
+  school   School   @relation(fields: [schoolId], references: [id])
+
+  grades   Grade[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("assessments")
+}
+
+model Grade {
+  id           String   @id @default(uuid())
+
+  assessmentId String   @map("assessment_id")
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  studentId    String   @map("student_id")
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  score        Float
+  feedback     String?
+
+  gradedAt     DateTime @default(now()) @map("graded_at")
+
+  @@unique([assessmentId, studentId])
+  @@map("grades")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?  @map("user_id")
+  user         User?    @relation(fields: [userId], references: [id])
+
+  action       String
+  resourceType String?  @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  ipAddress    String?  @map("ip_address")
+  metadata     Json?
+
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("password_reset_tokens")
+}
+
+model PlatformSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_settings")
+}

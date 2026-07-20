@@ -1,0 +1,36 @@
+import { createContext, useContext, useState, ReactNode } from 'react';
+
+export interface CurrentUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'owner' | 'teacher' | 'parent';
+}
+
+interface AuthContextValue {
+  user: CurrentUser | null;
+  setUser: (u: CurrentUser | null) => void;
+}
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUserState] = useState<CurrentUser | null>(() => {
+    const raw = localStorage.getItem('user');
+    return raw ? JSON.parse(raw) : null;
+  });
+
+  function setUser(u: CurrentUser | null) {
+    setUserState(u);
+    if (u) localStorage.setItem('user', JSON.stringify(u));
+    else localStorage.removeItem('user');
+  }
+
+  return <AuthContext.Provider value={{ user, setUser }}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
+}
