@@ -32,10 +32,7 @@ export class AuthService {
     }
 
     // 2FA is mandatory for owners, optional (but honored) for others
-    if (user.totpEnabled || user.role === 'owner') {
-      if (!user.totpSecret) {
-        throw new BadRequestException('يجب إعداد التحقق الثنائي أولاً');
-      }
+    if (user.totpSecret && (user.totpEnabled || user.role === 'owner')) {
       if (!totpCode) {
         return { requiresTotp: true }; // frontend should prompt for the code next
       }
