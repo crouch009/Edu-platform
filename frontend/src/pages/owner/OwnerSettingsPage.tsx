@@ -1,11 +1,15 @@
 import { ChangePasswordForm } from '../../components/ChangePasswordForm';
+import { TwoFactorSetup } from '../../components/TwoFactorSetup';
 import { OwnerLayout } from './OwnerLayout';
 
 export function OwnerSettingsPage() {
   return (
     <OwnerLayout>
       <h1 className="text-2xl font-bold text-navy mb-6">الإعدادات</h1>
-      <ChangePasswordForm />
+      <div className="flex flex-col gap-6">
+        <ChangePasswordForm />
+        <TwoFactorSetup />
+      </div>
     </OwnerLayout>
   );
 }
