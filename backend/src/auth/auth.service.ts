@@ -31,7 +31,9 @@ export class AuthService {
       throw new UnauthorizedException('بيانات الدخول غير صحيحة');
     }
 
-    // 2FA is mandatory for owners, optional (but honored) for others
+    // 2FA is enforced only once a secret has actually been configured.
+    // Before that (e.g. a brand-new owner account), login proceeds normally
+    // so the person can reach Settings and set 2FA up for the first time.
     if (user.totpSecret && (user.totpEnabled || user.role === 'owner')) {
       if (!totpCode) {
         return { requiresTotp: true }; // frontend should prompt for the code next
@@ -61,6 +63,13 @@ export class AuthService {
   async refresh(refreshToken: string) {
     try {
       const payload = this.jwt.verify(refreshToken);
+      if (payload.role === 'student') {
+        const studentPayload = { sub: payload.sub, role: 'student', schoolId: payload.schoolId, teacherId: payload.teacherId };
+        return {
+          accessToken: this.jwt.sign(studentPayload, { expiresIn: '2h' }),
+          refreshToken: this.jwt.sign(studentPayload, { expiresIn: '30d' }),
+        };
+      }
       return this.issueTokens(payload.sub, payload.role, payload.schoolId);
     } catch {
       throw new UnauthorizedException('رمز التحديث غير صالح، سجّل الدخول من جديد');
@@ -145,5 +154,30 @@ export class AuthService {
 
     await this.audit.log({ userId: resetToken.userId, action: 'password_reset_completed' });
     return { success: true };
+  }
+
+  /** Separate, lighter login for students, using credentials on the Student record itself */
+  async studentLogin(email: string, password: string, ip: string) {
+    const student = await this.prisma.student.findUnique({ where: { loginEmail: email } });
+    if (!student || !student.passwordHash) {
+      throw new UnauthorizedException('بيانات الدخول غير صحيحة');
+    }
+    const valid = await bcrypt.compare(password, student.passwordHash);
+    if (!valid) {
+      await this.audit.log({ action: 'student_login_failed', ipAddress: ip, metadata: { email } });
+      throw new UnauthorizedException('بيانات الدخول غير صحيحة');
+    }
+
+    const payload = { sub: student.id, role: 'student', schoolId: student.schoolId, teacherId: student.teacherId };
+    const accessToken = this.jwt.sign(payload, { expiresIn: '2h' }); // longer-lived: exam sessions can run long
+    const refreshToken = this.jwt.sign(payload, { expiresIn: '30d' });
+
+    await this.audit.log({ action: 'student_login_success', ipAddress: ip, metadata: { studentId: student.id } });
+
+    return {
+      accessToken,
+      refreshToken,
+      student: { id: student.id, name: student.name },
+    };
   }
 }

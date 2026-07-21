@@ -30,6 +30,12 @@ enum AssessmentType {
   participation
 }
 
+enum QuestionType {
+  mcq
+  truefalse
+  short
+}
+
 model School {
   id        String   @id @default(uuid())
   name      String
@@ -39,6 +45,9 @@ model School {
   students  Student[]
   subjects  Subject[]
   assessments Assessment[]
+  curricula Curriculum[]
+  questions Question[]
+  exams     Exam[]
 
   @@map("schools")
 }
@@ -68,6 +77,9 @@ model User {
   shareLinksCreated ShareLink[]  @relation("CreatedShareLinks")
   subjectsTaught    Subject[]    @relation("TeacherSubjects")
   assessmentsCreated Assessment[] @relation("TeacherAssessments")
+  curriculaCreated  Curriculum[] @relation("TeacherCurricula")
+  questionsCreated  Question[]   @relation("TeacherQuestions")
+  examsCreated      Exam[]       @relation("TeacherExams")
 
   // Parent-side relations
   studentsAsParent  Student[] @relation("ParentStudents")
@@ -84,6 +96,11 @@ model Student {
   grade     String?
   className String?  @map("class_name")
 
+  // Optional self-login credentials, separate from the staff `users` table.
+  // Only teachers/owners assign these; students log in with them to take exams.
+  loginEmail    String?  @unique @map("login_email")
+  passwordHash  String?  @map("password_hash")
+
   schoolId  String   @map("school_id")
   school    School   @relation(fields: [schoolId], references: [id])
 
@@ -95,6 +112,7 @@ model Student {
 
   reports   Report[]
   grades    Grade[]
+  examResults ExamResult[]
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -211,6 +229,86 @@ model Grade {
 
   @@unique([assessmentId, studentId])
   @@map("grades")
+}
+
+model Curriculum {
+  id        String   @id @default(uuid())
+  title     String
+  text      String
+
+  teacherId String   @map("teacher_id")
+  teacher   User     @relation("TeacherCurricula", fields: [teacherId], references: [id])
+
+  schoolId  String   @map("school_id")
+  school    School   @relation(fields: [schoolId], references: [id])
+
+  questions Question[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("curricula")
+}
+
+model Question {
+  id            String   @id @default(uuid())
+  type          QuestionType
+  text          String
+  options       Json?
+  correctAnswer String   @map("correct_answer")
+
+  curriculumId  String?  @map("curriculum_id")
+  curriculum    Curriculum? @relation(fields: [curriculumId], references: [id], onDelete: SetNull)
+
+  teacherId     String   @map("teacher_id")
+  teacher       User     @relation("TeacherQuestions", fields: [teacherId], references: [id])
+
+  schoolId      String   @map("school_id")
+  school        School   @relation(fields: [schoolId], references: [id])
+
+  exams         Exam[]   @relation("ExamQuestions")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("questions")
+}
+
+model Exam {
+  id         String   @id @default(uuid())
+  title      String
+  duration   Int      // minutes
+
+  teacherId  String   @map("teacher_id")
+  teacher    User     @relation("TeacherExams", fields: [teacherId], references: [id])
+
+  schoolId   String   @map("school_id")
+  school     School   @relation(fields: [schoolId], references: [id])
+
+  questions  Question[] @relation("ExamQuestions")
+  results    ExamResult[]
+
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("exams")
+}
+
+model ExamResult {
+  id          String   @id @default(uuid())
+
+  examId      String   @map("exam_id")
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  studentId   String   @map("student_id")
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  answers     Json
+  score       Int
+  total       Int
+  percent     Int
+
+  submittedAt DateTime @default(now()) @map("submitted_at")
+
+  @@unique([examId, studentId])
+  @@map("exam_results")
 }
 
 model AuditLog {

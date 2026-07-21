@@ -6,6 +6,15 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { StudentsService } from './students.service';
 import { CreateStudentDto, UpdateStudentDto } from './dto/students.dto';
+import { IsString, IsEmail } from 'class-validator';
+
+class SetStudentCredentialsDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  password: string;
+}
 
 @Controller('students')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -41,5 +50,16 @@ export class StudentsController {
   @UseGuards(StudentOwnershipGuard)
   remove(@Param('studentId') studentId: string, @CurrentUser() user: any) {
     return this.studentsService.remove(studentId, user.sub);
+  }
+
+  @Patch(':studentId/login-credentials')
+  @Roles('owner', 'teacher')
+  @UseGuards(StudentOwnershipGuard)
+  setLoginCredentials(
+    @Param('studentId') studentId: string,
+    @Body() dto: SetStudentCredentialsDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.studentsService.setLoginCredentials(studentId, dto.email, dto.password, user.sub);
   }
 }

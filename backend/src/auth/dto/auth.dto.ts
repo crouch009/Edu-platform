@@ -47,3 +47,11 @@ export class ResetPasswordDto {
   @MinLength(8)
   newPassword: string;
 }
+
+export class StudentLoginDto {
+  @IsString()
+  email: string;
+
+  @IsString()
+  password: string;
+}

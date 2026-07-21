@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { TeacherLayout } from './TeacherLayout';
 import { StudentGradesView } from '../../components/StudentGradesView';
+import { StudentLoginCredentialsForm } from '../../components/StudentLoginCredentialsForm';
 
 interface ReportRow {
   id: string;
@@ -17,6 +18,7 @@ interface StudentDetail {
   name: string;
   grade: string | null;
   className: string | null;
+  loginEmail: string | null;
   parent: { name: string; email: string } | null;
   reports: ReportRow[];
 }
@@ -75,9 +77,11 @@ export function TeacherStudentPage() {
       </div>
 
       <h2 className="font-bold text-lg mb-4">الدرجات</h2>
-      <div className="bg-white rounded-xl shadow-sm p-6">
+      <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
         <StudentGradesView studentId={student.id} />
       </div>
+
+      <StudentLoginCredentialsForm studentId={student.id} currentEmail={student.loginEmail} />
     </TeacherLayout>
   );
 }

@@ -1,11 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/AuthContext';
+import { StudentAuthProvider } from './lib/StudentAuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { StudentProtectedRoute } from './components/StudentProtectedRoute';
 
 import { LoginPage } from './pages/LoginPage';
 import { SharedReportPage } from './pages/SharedReportPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { StudentLoginPage } from './pages/StudentLoginPage';
 
 import { OwnerDashboard } from './pages/owner/OwnerDashboard';
 import { OwnerUsersPage } from './pages/owner/OwnerUsersPage';
@@ -21,10 +24,16 @@ import { TeacherReportPage } from './pages/teacher/TeacherReportPage';
 import { TeacherSettingsPage } from './pages/teacher/TeacherSettingsPage';
 import { TeacherSubjectsPage } from './pages/teacher/TeacherSubjectsPage';
 import { TeacherSubjectPage } from './pages/teacher/TeacherSubjectPage';
+import { TeacherCurriculaPage } from './pages/teacher/TeacherCurriculaPage';
+import { TeacherQuestionsPage } from './pages/teacher/TeacherQuestionsPage';
+import { TeacherExamsPage } from './pages/teacher/TeacherExamsPage';
 
 import { ParentDashboard } from './pages/parent/ParentDashboard';
 import { ParentReportPage } from './pages/parent/ParentReportPage';
 import { ParentSettingsPage } from './pages/parent/ParentSettingsPage';
+
+import { StudentDashboard } from './pages/student/StudentDashboard';
+import { StudentTakeExamPage } from './pages/student/StudentTakeExamPage';
 
 function HomeRedirect() {
   const { user } = useAuth();
@@ -41,12 +50,14 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+      <StudentAuthProvider>
         <Routes>
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/shared/:token" element={<SharedReportPage />} />
+          <Route path="/student/login" element={<StudentLoginPage />} />
 
           {/* Owner */}
           <Route path="/owner/dashboard" element={
@@ -90,6 +101,15 @@ export default function App() {
           <Route path="/teacher/subjects/:subjectId" element={
             <ProtectedRoute roles={['teacher']}><TeacherSubjectPage /></ProtectedRoute>
           } />
+          <Route path="/teacher/curricula" element={
+            <ProtectedRoute roles={['teacher']}><TeacherCurriculaPage /></ProtectedRoute>
+          } />
+          <Route path="/teacher/questions" element={
+            <ProtectedRoute roles={['teacher']}><TeacherQuestionsPage /></ProtectedRoute>
+          } />
+          <Route path="/teacher/exams" element={
+            <ProtectedRoute roles={['teacher']}><TeacherExamsPage /></ProtectedRoute>
+          } />
 
           {/* Parent */}
           <Route path="/parent/dashboard" element={
@@ -102,8 +122,17 @@ export default function App() {
             <ProtectedRoute roles={['parent']}><ParentSettingsPage /></ProtectedRoute>
           } />
 
+          {/* Student */}
+          <Route path="/student/dashboard" element={
+            <StudentProtectedRoute><StudentDashboard /></StudentProtectedRoute>
+          } />
+          <Route path="/student/exams/:examId" element={
+            <StudentProtectedRoute><StudentTakeExamPage /></StudentProtectedRoute>
+          } />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+      </StudentAuthProvider>
       </AuthProvider>
     </BrowserRouter>
   );

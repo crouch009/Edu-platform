@@ -18,6 +18,9 @@ export function TeacherLayout({ children }: { children: ReactNode }) {
       <div className="bg-navy text-white px-6 py-4 flex justify-between items-center">
         <Link to="/teacher/dashboard" className="font-bold">لوحة المعلم</Link>
         <div className="flex items-center gap-4 text-sm">
+          <Link to="/teacher/curricula" className="hover:underline">المناهج</Link>
+          <Link to="/teacher/questions" className="hover:underline">بنك الأسئلة</Link>
+          <Link to="/teacher/exams" className="hover:underline">الامتحانات</Link>
           <Link to="/teacher/subjects" className="hover:underline">موادي الدراسية</Link>
           <Link to="/teacher/settings" className="hover:underline">الإعدادات</Link>
           <span>{user?.name}</span>
