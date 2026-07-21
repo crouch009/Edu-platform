@@ -28,7 +28,7 @@ export class AuthController {
   @Post('2fa/confirm')
   @UseGuards(JwtAuthGuard)
   confirmTotp(@CurrentUser() user: any, @Body() dto: EnableTotpDto) {
-    return this.authService.confirmTotp(user.sub, dto.code);
+    return this.authService.confirmTotp(user.sub, dto.code, dto.secret);
   }
 
   @Post('change-password')

@@ -28,7 +28,7 @@ export function TwoFactorSetup() {
     setError('');
     setLoading(true);
     try {
-      await api.post('/auth/2fa/confirm', { code });
+      await api.post('/auth/2fa/confirm', { code, secret });
       setSuccess(true);
     } catch (err: any) {
       setError(err.response?.data?.message || 'كود غير صحيح');

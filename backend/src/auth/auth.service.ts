@@ -84,20 +84,20 @@ export class AuthService {
     const otpauthUrl = authenticator.keyuri(user.email, 'EduPlatform', secret);
     const qrCodeDataUrl = await qrcode.toDataURL(otpauthUrl);
 
-    // Store temporarily, not yet enabled until confirmed
-    await this.prisma.user.update({ where: { id: userId }, data: { totpSecret: secret } });
+    // Do NOT persist yet - only saved once confirmTotp verifies the user
+    // actually scanned it and can produce a valid code. This avoids locking
+    // an account out of login if setup is started but abandoned.
     return { qrCodeDataUrl, secret };
   }
 
   /** Step 2: user enters a code from their app to confirm and activate 2FA */
-  async confirmTotp(userId: string, code: string) {
+  async confirmTotp(userId: string, code: string, secret: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('المستخدم غير موجود');
-    if (!user.totpSecret) throw new BadRequestException('لم يتم توليد سر التحقق بعد');
-    const isValid = authenticator.verify({ token: code, secret: user.totpSecret });
+    const isValid = authenticator.verify({ token: code, secret });
     if (!isValid) throw new BadRequestException('كود التحقق غير صحيح');
 
-    await this.prisma.user.update({ where: { id: userId }, data: { totpEnabled: true } });
+    await this.prisma.user.update({ where: { id: userId }, data: { totpSecret: secret, totpEnabled: true } });
     await this.audit.log({ userId, action: 'totp_enabled' });
     return { enabled: true };
   }

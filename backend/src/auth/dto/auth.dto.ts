@@ -23,6 +23,9 @@ export class EnableTotpDto {
   @IsString()
   @Length(6, 6)
   code: string;
+
+  @IsString()
+  secret: string;
 }
 
 export class ChangePasswordDto {
