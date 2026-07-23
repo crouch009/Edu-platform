@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { setStudentTokens } from '../../lib/studentApi';
 import { useStudentAuth } from '../../lib/StudentAuthContext';
@@ -18,6 +18,8 @@ export function OwnerStudentsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', grade: '', className: '', teacherId: '', parentId: '' });
   const [error, setError] = useState('');
+  const [generatedCreds, setGeneratedCreds] = useState<{ studentId: string; name: string; email: string; password: string }[]>([]);
+  const [generating, setGenerating] = useState(false);
   const { setStudent } = useStudentAuth();
   const navigate = useNavigate();
 
@@ -66,14 +68,73 @@ export function OwnerStudentsPage() {
     navigate('/student/dashboard');
   }
 
+  async function handleGenerateCredentials() {
+    if (!confirm('توليد بيانات دخول تلقائية لكل الطلاب الذين ليس لديهم بيانات دخول بعد؟')) return;
+    setGenerating(true);
+    try {
+      const { data } = await api.post('/students/generate-credentials');
+      setGeneratedCreds(data);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'حدث خطأ');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  function downloadCredentialsCsv() {
+    const header = 'الاسم,البريد الإلكتروني,كلمة المرور\n';
+    const rows = generatedCreds.map(c => `${c.name},${c.email},${c.password}`).join('\n');
+    const blob = new Blob(['\uFEFF' + header + rows], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'student-login-credentials.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <OwnerLayout>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-navy">إدارة الطلاب والربط</h1>
-        <button onClick={() => setShowForm(v => !v)} className="bg-accent text-white px-4 py-2 rounded-lg font-semibold">
-          + طالب جديد
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleGenerateCredentials} disabled={generating}
+            className="border border-navy text-navy px-4 py-2 rounded-lg font-semibold text-sm disabled:opacity-60">
+            {generating ? 'جارٍ التوليد...' : 'توليد بيانات دخول لكل الطلاب'}
+          </button>
+          <button onClick={() => setShowForm(v => !v)} className="bg-accent text-white px-4 py-2 rounded-lg font-semibold">
+            + طالب جديد
+          </button>
+        </div>
       </div>
+
+      {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+
+      {generatedCreds.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-5 mb-6">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-bold">تم توليد {generatedCreds.length} حساب جديد</h3>
+            <button onClick={downloadCredentialsCsv} className="bg-navy text-white px-4 py-2 rounded-lg text-sm font-semibold">
+              تحميل CSV
+            </button>
+          </div>
+          <p className="text-sm text-red-600 mb-3">
+            احفظ كلمات المرور دي دلوقتي — مش هتقدر تشوفها تاني بعد ما تسيب الصفحة، بس تقدر تعمل ريست لاحقًا من صفحة كل طالب.
+          </p>
+          <table className="w-full text-sm">
+            <thead><tr className="text-gray-500"><th className="text-right py-1">الاسم</th><th className="text-right py-1">البريد</th><th className="text-right py-1">كلمة المرور</th></tr></thead>
+            <tbody>
+              {generatedCreds.map(c => (
+                <tr key={c.studentId} className="border-t">
+                  <td className="py-2">{c.name}</td>
+                  <td className="py-2" dir="ltr">{c.email}</td>
+                  <td className="py-2 font-mono" dir="ltr">{c.password}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {showForm && (
         <form onSubmit={handleCreate} className="bg-white rounded-xl shadow-sm p-5 mb-6 grid grid-cols-2 gap-4">
@@ -134,6 +195,9 @@ export function OwnerStudentsPage() {
                 <td className="p-3">{s.teacher?.name || '—'}</td>
                 <td className="p-3">{s.parent?.name || '—'}</td>
                 <td className="p-3 flex gap-2">
+                  <Link to={`/teacher/students/${s.id}`} className="text-xs border rounded-lg px-2 py-1 whitespace-nowrap">
+                    عرض (تقارير ودرجات)
+                  </Link>
                   <button onClick={() => handleImpersonate(s)} className="text-xs border border-navy text-navy rounded-lg px-2 py-1 whitespace-nowrap">
                     عرض بوابة الطالب
                   </button>

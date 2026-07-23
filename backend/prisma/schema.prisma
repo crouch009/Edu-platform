@@ -277,6 +277,8 @@ model Exam {
   id         String   @id @default(uuid())
   title      String
   duration   Int      // minutes
+  shuffleQuestions Boolean @default(false) @map("shuffle_questions")
+  allowRetake      Boolean @default(false) @map("allow_retake")
 
   teacherId  String   @map("teacher_id")
   teacher    User     @relation("TeacherExams", fields: [teacherId], references: [id])

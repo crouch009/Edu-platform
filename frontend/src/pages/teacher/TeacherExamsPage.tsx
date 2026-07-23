@@ -20,6 +20,8 @@ export function TeacherExamsPage() {
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [duration, setDuration] = useState(20);
+  const [shuffleQuestions, setShuffleQuestions] = useState(false);
+  const [allowRetake, setAllowRetake] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [openResults, setOpenResults] = useState<string | null>(null);
@@ -50,8 +52,8 @@ export function TeacherExamsPage() {
     setError('');
     if (selected.size === 0) { setError('اختر سؤالًا واحدًا على الأقل'); return; }
     try {
-      await api.post('/exams', { title, duration, questionIds: Array.from(selected) });
-      setTitle(''); setDuration(20); setSelected(new Set());
+      await api.post('/exams', { title, duration, questionIds: Array.from(selected), shuffleQuestions, allowRetake });
+      setTitle(''); setDuration(20); setSelected(new Set()); setShuffleQuestions(false); setAllowRetake(false);
       setShowForm(false);
       load();
     } catch (err: any) {
@@ -167,6 +169,17 @@ export function TeacherExamsPage() {
               <input type="number" min={1} className="w-full border rounded-lg px-3 py-2 mt-1"
                 value={duration} onChange={e => setDuration(Number(e.target.value))} required />
             </div>
+          </div>
+
+          <div className="flex gap-4 mb-4">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={shuffleQuestions} onChange={e => setShuffleQuestions(e.target.checked)} />
+              خلط ترتيب الأسئلة لكل طالب
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={allowRetake} onChange={e => setAllowRetake(e.target.checked)} />
+              السماح بإعادة المحاولة
+            </label>
           </div>
 
           <h3 className="font-semibold mb-2">اختر الأسئلة ({questions.length} متاح)</h3>

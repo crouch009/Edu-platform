@@ -113,4 +113,44 @@ export class StudentsService {
 
     return { accessToken, student: { id: student.id, name: student.name } };
   }
+
+  /**
+   * Bulk-generates login credentials (email + random password) for every
+   * student in the school (or under one teacher) that doesn't already have
+   * one, so they can log into the exam portal. Returns the plaintext
+   * passwords ONCE - they are not recoverable afterward, only resettable.
+   */
+  async generateCredentialsForStudentsWithout(schoolId: string, teacherId: string | undefined, actingUserId: string) {
+    const students = await this.prisma.student.findMany({
+      where: { schoolId, teacherId, loginEmail: null },
+    });
+
+    const results: { studentId: string; name: string; email: string; password: string }[] = [];
+
+    for (const student of students) {
+      const slug = student.name
+        .replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '')
+        .toLowerCase()
+        .slice(0, 12) || 'student';
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      const email = `${slug}${randomSuffix}@student.local`;
+      const password = Math.random().toString(36).slice(-4) + Math.random().toString(36).slice(-4);
+      const passwordHash = await bcrypt.hash(password, 12);
+
+      await this.prisma.student.update({
+        where: { id: student.id },
+        data: { loginEmail: email, passwordHash },
+      });
+
+      results.push({ studentId: student.id, name: student.name, email, password });
+    }
+
+    await this.audit.log({
+      userId: actingUserId,
+      action: 'bulk_student_credentials_generated',
+      metadata: { count: results.length },
+    });
+
+    return results;
+  }
 }

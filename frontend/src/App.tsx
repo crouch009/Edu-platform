@@ -81,34 +81,34 @@ export default function App() {
 
           {/* Teacher */}
           <Route path="/teacher/dashboard" element={
-            <ProtectedRoute roles={['teacher']}><TeacherDashboard /></ProtectedRoute>
+            <ProtectedRoute roles={['teacher', 'owner']}><TeacherDashboard /></ProtectedRoute>
           } />
           <Route path="/teacher/students/:studentId" element={
-            <ProtectedRoute roles={['teacher']}><TeacherStudentPage /></ProtectedRoute>
+            <ProtectedRoute roles={['teacher', 'owner']}><TeacherStudentPage /></ProtectedRoute>
           } />
           <Route path="/teacher/students/:studentId/reports/new" element={
-            <ProtectedRoute roles={['teacher']}><TeacherNewReportPage /></ProtectedRoute>
+            <ProtectedRoute roles={['teacher', 'owner']}><TeacherNewReportPage /></ProtectedRoute>
           } />
           <Route path="/teacher/reports/:reportId" element={
-            <ProtectedRoute roles={['teacher']}><TeacherReportPage /></ProtectedRoute>
+            <ProtectedRoute roles={['teacher', 'owner']}><TeacherReportPage /></ProtectedRoute>
           } />
           <Route path="/teacher/settings" element={
             <ProtectedRoute roles={['teacher']}><TeacherSettingsPage /></ProtectedRoute>
           } />
           <Route path="/teacher/subjects" element={
-            <ProtectedRoute roles={['teacher']}><TeacherSubjectsPage /></ProtectedRoute>
+            <ProtectedRoute roles={['teacher', 'owner']}><TeacherSubjectsPage /></ProtectedRoute>
           } />
           <Route path="/teacher/subjects/:subjectId" element={
-            <ProtectedRoute roles={['teacher']}><TeacherSubjectPage /></ProtectedRoute>
+            <ProtectedRoute roles={['teacher', 'owner']}><TeacherSubjectPage /></ProtectedRoute>
           } />
           <Route path="/teacher/curricula" element={
-            <ProtectedRoute roles={['teacher']}><TeacherCurriculaPage /></ProtectedRoute>
+            <ProtectedRoute roles={['teacher', 'owner']}><TeacherCurriculaPage /></ProtectedRoute>
           } />
           <Route path="/teacher/questions" element={
-            <ProtectedRoute roles={['teacher']}><TeacherQuestionsPage /></ProtectedRoute>
+            <ProtectedRoute roles={['teacher', 'owner']}><TeacherQuestionsPage /></ProtectedRoute>
           } />
           <Route path="/teacher/exams" element={
-            <ProtectedRoute roles={['teacher']}><TeacherExamsPage /></ProtectedRoute>
+            <ProtectedRoute roles={['teacher', 'owner']}><TeacherExamsPage /></ProtectedRoute>
           } />
 
           {/* Parent */}

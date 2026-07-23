@@ -112,6 +112,8 @@ export class ExamsService {
       data: {
         title: dto.title,
         duration: dto.duration,
+        shuffleQuestions: dto.shuffleQuestions ?? false,
+        allowRetake: dto.allowRetake ?? false,
         teacherId,
         schoolId,
         questions: { connect: dto.questionIds.map(id => ({ id })) },
@@ -206,12 +208,13 @@ export class ExamsService {
       title: e.title,
       duration: e.duration,
       questionCount: e.questions.length,
-      completed: resultByExam.has(e.id),
+      allowRetake: e.allowRetake,
+      completed: resultByExam.has(e.id) && !e.allowRetake,
       result: resultByExam.get(e.id) ?? null,
     }));
   }
 
-  /** Exam questions for taking - correct answers stripped out */
+  /** Exam questions for taking - correct answers stripped out, optionally shuffled */
   async getExamForTaking(examId: string, teacherId: string) {
     const exam = await this.prisma.exam.findUnique({
       where: { id: examId },
@@ -220,16 +223,21 @@ export class ExamsService {
     if (!exam) throw new NotFoundException('الامتحان غير موجود');
     if (exam.teacherId !== teacherId) throw new NotFoundException('الامتحان غير موجود');
 
+    let questions = exam.questions.map(q => ({
+      id: q.id,
+      type: q.type,
+      text: q.text,
+      options: q.options,
+    }));
+    if (exam.shuffleQuestions) {
+      questions = [...questions].sort(() => Math.random() - 0.5);
+    }
+
     return {
       id: exam.id,
       title: exam.title,
       duration: exam.duration,
-      questions: exam.questions.map(q => ({
-        id: q.id,
-        type: q.type,
-        text: q.text,
-        options: q.options,
-      })),
+      questions,
     };
   }
 
@@ -244,7 +252,9 @@ export class ExamsService {
     const existing = await this.prisma.examResult.findUnique({
       where: { examId_studentId: { examId, studentId } },
     });
-    if (existing) throw new BadRequestException('لقد قمت بتسليم هذا الامتحان بالفعل');
+    if (existing && !exam.allowRetake) {
+      throw new BadRequestException('لقد قمت بتسليم هذا الامتحان بالفعل');
+    }
 
     const answerMap = new Map(dto.answers.map(a => [a.questionId, a.answer]));
     let score = 0;
@@ -259,15 +269,10 @@ export class ExamsService {
     const total = exam.questions.length;
     const percent = total > 0 ? Math.round((score / total) * 100) : 0;
 
-    const result = await this.prisma.examResult.create({
-      data: {
-        examId,
-        studentId,
-        answers: dto.answers as any,
-        score,
-        total,
-        percent,
-      },
+    const result = await this.prisma.examResult.upsert({
+      where: { examId_studentId: { examId, studentId } },
+      update: { answers: dto.answers as any, score, total, percent, submittedAt: new Date() },
+      create: { examId, studentId, answers: dto.answers as any, score, total, percent },
     });
 
     await this.audit.log({ userId: undefined, action: 'exam_submitted', resourceType: 'exam', resourceId: examId, metadata: { studentId, score, total } });

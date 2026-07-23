@@ -12,6 +12,7 @@ import { AuditModule } from './audit/audit.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { GradesModule } from './grades/grades.module';
 import { ExamsModule } from './exams/exams.module';
+import { PlatformSettingsModule } from './platform-settings/platform-settings.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ExamsModule } from './exams/exams.module';
     AnalyticsModule,
     GradesModule,
     ExamsModule,
+    PlatformSettingsModule,
   ],
 })
 export class AppModule {}

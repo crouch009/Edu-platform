@@ -62,6 +62,12 @@ export class CreateExamDto {
   @IsArray()
   @IsString({ each: true })
   questionIds: string[];
+
+  @IsOptional()
+  shuffleQuestions?: boolean;
+
+  @IsOptional()
+  allowRetake?: boolean;
 }
 
 export class StudentAnswerDto {

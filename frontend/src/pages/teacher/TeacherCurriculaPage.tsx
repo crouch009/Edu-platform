@@ -27,6 +27,7 @@ export function TeacherCurriculaPage() {
   const [loading, setLoading] = useState(false);
 
   const [extracting, setExtracting] = useState(false);
+  const [extractSuccess, setExtractSuccess] = useState(false);
 
   function load() {
     api.get('/curricula').then(res => setCurricula(res.data));
@@ -37,6 +38,7 @@ export function TeacherCurriculaPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setError('');
+    setExtractSuccess(false);
     setExtracting(true);
     try {
       const formData = new FormData();
@@ -44,9 +46,19 @@ export function TeacherCurriculaPage() {
       const { data } = await api.post('/curricula/extract-text', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setText(data.text);
+      const extracted = (data.text || '').trim();
+      if (extracted.length < 20) {
+        setError(
+          'الملف تم رفعه بنجاح لكن لم نستطع استخراج نص كافٍ منه - على الأرجح لأنه يحتوي صورًا ممسوحة ضوئيًا بدل نص فعلي. ' +
+          'جرب ملف PDF/DOCX يحتوي نصًا حقيقيًا (وليس صورة للنص)، أو انسخ النص والصقه يدويًا في المربع تحت.',
+        );
+        setText('');
+      } else {
+        setText(extracted);
+        setExtractSuccess(true);
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'تعذر استخراج النص من هذا الملف');
+      setError(err.response?.data?.message || 'تعذر استخراج النص من هذا الملف - تأكد أنه بصيغة TXT أو PDF أو DOCX');
     } finally {
       setExtracting(false);
     }
@@ -110,6 +122,7 @@ export function TeacherCurriculaPage() {
         <label className="text-sm text-gray-600">ارفع ملف (TXT, PDF, DOCX) أو الصق النص</label>
         <input type="file" accept=".txt,.pdf,.doc,.docx" onChange={handleFileUpload} className="mb-2 block" disabled={extracting} />
         {extracting && <p className="text-sm text-gray-500 mb-2">جارٍ استخراج النص من الملف...</p>}
+        {extractSuccess && !extracting && <p className="text-sm text-green-700 mb-2">تم استخراج النص بنجاح، راجعه تحت ثم اضغط توليد الأسئلة</p>}
         <textarea className="w-full border rounded-lg px-3 py-2 mb-4" rows={8} value={text}
           onChange={e => setText(e.target.value)} placeholder="الصق نص الدرس هنا..." />
 

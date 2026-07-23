@@ -68,4 +68,12 @@ export class StudentsController {
   impersonate(@Param('studentId') studentId: string, @CurrentUser() user: any) {
     return this.studentsService.impersonate(studentId, user.sub, user.schoolId);
   }
+
+  @Post('generate-credentials')
+  @Roles('owner', 'teacher')
+  generateCredentials(@CurrentUser() user: any) {
+    // Teachers only generate for their own students; owners generate for the whole school
+    const teacherId = user.role === 'teacher' ? user.sub : undefined;
+    return this.studentsService.generateCredentialsForStudentsWithout(user.schoolId, teacherId, user.sub);
+  }
 }

@@ -9,6 +9,7 @@ interface ExamRow {
   duration: number;
   questionCount: number;
   completed: boolean;
+  allowRetake: boolean;
   result: { score: number; total: number; percent: number } | null;
 }
 
@@ -31,14 +32,22 @@ export function StudentDashboard() {
             <div>
               <div className="font-bold">{e.title}</div>
               <div className="text-xs text-gray-500 mt-1">{e.questionCount} سؤال · {e.duration} دقيقة</div>
+              {e.result && (
+                <div className="text-xs mt-1">
+                  آخر نتيجة:{' '}
+                  <span className={e.result.percent >= 50 ? 'text-green-700' : 'text-red-700'}>
+                    {e.result.percent}%
+                  </span>
+                </div>
+              )}
             </div>
-            {e.completed && e.result ? (
-              <span className={`text-sm px-3 py-1 rounded-full ${e.result.percent >= 50 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                تم الحل: {e.result.percent}%
+            {e.completed ? (
+              <span className={`text-sm px-3 py-1 rounded-full ${e.result && e.result.percent >= 50 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                تم الحل: {e.result?.percent}%
               </span>
             ) : (
               <Link to={`/student/exams/${e.id}`} className="bg-accent text-white px-4 py-2 rounded-lg font-semibold text-sm">
-                بدء الامتحان
+                {e.result ? 'إعادة المحاولة' : 'بدء الامتحان'}
               </Link>
             )}
           </div>
