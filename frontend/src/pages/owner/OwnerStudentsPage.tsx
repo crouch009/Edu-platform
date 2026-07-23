@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
+import { setStudentTokens } from '../../lib/studentApi';
+import { useStudentAuth } from '../../lib/StudentAuthContext';
 import { OwnerLayout } from './OwnerLayout';
 
 interface UserOption { id: string; name: string; role: string; }
@@ -15,6 +18,8 @@ export function OwnerStudentsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', grade: '', className: '', teacherId: '', parentId: '' });
   const [error, setError] = useState('');
+  const { setStudent } = useStudentAuth();
+  const navigate = useNavigate();
 
   function load() {
     api.get('/students').then(res => setStudents(res.data));
@@ -48,6 +53,17 @@ export function OwnerStudentsPage() {
     if (!confirm('حذف هذا الطالب وكل تقاريره؟')) return;
     await api.delete(`/students/${id}`);
     load();
+  }
+
+  async function handleImpersonate(s: StudentRow) {
+    if (!confirm(`عرض حساب الطالب ${s.name} (بوابة الامتحانات)؟`)) return;
+    const { data } = await api.post(`/students/${s.id}/impersonate`);
+    // Students use a completely separate token/context system, so the
+    // owner's own session (staff `api`) is left untouched - no stashing needed.
+    setStudentTokens(data.accessToken, '');
+    setStudent(data.student);
+    sessionStorage.setItem('studentImpersonationByOwner', 'true');
+    navigate('/student/dashboard');
   }
 
   return (
@@ -117,7 +133,10 @@ export function OwnerStudentsPage() {
                 <td className="p-3 text-gray-500">{s.grade || '—'} {s.className ? `/ ${s.className}` : ''}</td>
                 <td className="p-3">{s.teacher?.name || '—'}</td>
                 <td className="p-3">{s.parent?.name || '—'}</td>
-                <td className="p-3">
+                <td className="p-3 flex gap-2">
+                  <button onClick={() => handleImpersonate(s)} className="text-xs border border-navy text-navy rounded-lg px-2 py-1 whitespace-nowrap">
+                    عرض بوابة الطالب
+                  </button>
                   <button onClick={() => handleDelete(s.id)} className="text-xs border border-red-300 text-red-600 rounded-lg px-2 py-1">
                     حذف
                   </button>

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { api } from '../../lib/api';
+import { useNavigate } from 'react-router-dom';
+import { api, saveImpersonationOriginal, setImpersonatedSession } from '../../lib/api';
+import { useAuth } from '../../lib/AuthContext';
 import { OwnerLayout } from './OwnerLayout';
 
 interface UserRow {
@@ -10,26 +12,46 @@ interface UserRow {
   status: 'active' | 'suspended';
   totpEnabled: boolean;
   lastLoginAt: string | null;
+  stages: string[];
 }
+
+const STAGE_OPTIONS = ['رياض أطفال', 'ابتدائي', 'إعدادي', 'ثانوي'];
 
 export function OwnerUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'teacher' });
+  const [form, setForm] = useState({
+    name: '', email: '', password: '', role: 'teacher',
+    subjectNames: '', stages: [] as string[],
+  });
   const [error, setError] = useState('');
+  const { user: currentUser, setUser } = useAuth();
+  const navigate = useNavigate();
 
   function load() {
     api.get('/users').then(res => setUsers(res.data));
   }
   useEffect(load, []);
 
+  function toggleStage(stage: string) {
+    setForm(prev => ({
+      ...prev,
+      stages: prev.stages.includes(stage) ? prev.stages.filter(s => s !== stage) : [...prev.stages, stage],
+    }));
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     try {
-      await api.post('/users', form);
+      const subjectNames = form.subjectNames.split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+      await api.post('/users', {
+        name: form.name, email: form.email, password: form.password, role: form.role,
+        subjectNames: form.role === 'teacher' ? subjectNames : undefined,
+        stages: form.role === 'teacher' ? form.stages : undefined,
+      });
       setShowForm(false);
-      setForm({ name: '', email: '', password: '', role: 'teacher' });
+      setForm({ name: '', email: '', password: '', role: 'teacher', subjectNames: '', stages: [] });
       load();
     } catch (err: any) {
       setError(err.response?.data?.message || 'حدث خطأ');
@@ -46,6 +68,15 @@ export function OwnerUsersPage() {
     if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟')) return;
     await api.delete(`/users/${id}`);
     load();
+  }
+
+  async function handleImpersonate(u: UserRow) {
+    if (!confirm(`الدخول كـ ${u.name}؟ هتقدر ترجع لحسابك في أي وقت.`)) return;
+    const { data } = await api.post(`/users/${u.id}/impersonate`);
+    saveImpersonationOriginal(currentUser);
+    setImpersonatedSession(data.accessToken, data.user);
+    setUser(data.user);
+    navigate(data.user.role === 'teacher' ? '/teacher/dashboard' : '/parent/dashboard');
   }
 
   const roleLabel: Record<string, string> = { owner: 'مالك', teacher: 'معلم', parent: 'ولي أمر' };
@@ -85,6 +116,29 @@ export function OwnerUsersPage() {
               <option value="owner">مالك</option>
             </select>
           </div>
+
+          {form.role === 'teacher' && (
+            <>
+              <div className="col-span-2">
+                <label className="text-sm text-gray-600">المواد التي يدرّسها (كل مادة في سطر أو مفصولة بفاصلة)</label>
+                <textarea className="w-full border rounded-lg px-3 py-2 mt-1" rows={3}
+                  value={form.subjectNames} onChange={e => setForm({ ...form, subjectNames: e.target.value })}
+                  placeholder={'مثال:\nالرياضيات\nالعلوم'} />
+              </div>
+              <div className="col-span-2">
+                <label className="text-sm text-gray-600 block mb-2">المراحل الدراسية التي يعمل بها</label>
+                <div className="flex gap-3 flex-wrap">
+                  {STAGE_OPTIONS.map(stage => (
+                    <label key={stage} className="flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer">
+                      <input type="checkbox" checked={form.stages.includes(stage)} onChange={() => toggleStage(stage)} />
+                      <span className="text-sm">{stage}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
           {error && <p className="text-red-600 text-sm col-span-2">{error}</p>}
           <div className="col-span-2">
             <button className="bg-navy text-white px-4 py-2 rounded-lg font-semibold">حفظ</button>
@@ -99,9 +153,9 @@ export function OwnerUsersPage() {
               <th className="text-right p-3">الاسم</th>
               <th className="text-right p-3">البريد</th>
               <th className="text-right p-3">الدور</th>
+              <th className="text-right p-3">المراحل</th>
               <th className="text-right p-3">الحالة</th>
               <th className="text-right p-3">2FA</th>
-              <th className="text-right p-3">آخر دخول</th>
               <th className="text-right p-3"></th>
             </tr>
           </thead>
@@ -111,14 +165,19 @@ export function OwnerUsersPage() {
                 <td className="p-3 font-medium">{u.name}</td>
                 <td className="p-3 text-gray-500">{u.email}</td>
                 <td className="p-3">{roleLabel[u.role]}</td>
+                <td className="p-3 text-gray-500 text-xs">{u.stages?.join('، ') || '—'}</td>
                 <td className="p-3">
                   <span className={`px-2 py-1 rounded-full text-xs ${u.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                     {u.status === 'active' ? 'نشط' : 'موقوف'}
                   </span>
                 </td>
                 <td className="p-3">{u.totpEnabled ? '✓' : '—'}</td>
-                <td className="p-3 text-gray-500">{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString('ar-EG') : '—'}</td>
-                <td className="p-3 flex gap-2">
+                <td className="p-3 flex gap-2 flex-wrap">
+                  {u.role !== 'owner' && (
+                    <button onClick={() => handleImpersonate(u)} className="text-xs border border-navy text-navy rounded-lg px-2 py-1">
+                      دخول كهذا المستخدم
+                    </button>
+                  )}
                   <button onClick={() => toggleStatus(u)} className="text-xs border rounded-lg px-2 py-1">
                     {u.status === 'active' ? 'إيقاف' : 'تفعيل'}
                   </button>

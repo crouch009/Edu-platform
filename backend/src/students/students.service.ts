@@ -1,12 +1,13 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateStudentDto, UpdateStudentDto } from './dto/students.dto';
 
 @Injectable()
 export class StudentsService {
-  constructor(private prisma: PrismaService, private audit: AuditService) {}
+  constructor(private prisma: PrismaService, private audit: AuditService, private jwt: JwtService) {}
 
   /** Returns students scoped to the requesting user's role, always within their own school */
   async findAllForUser(userId: string, role: string, schoolId: string) {
@@ -91,5 +92,25 @@ export class StudentsService {
     });
     await this.audit.log({ userId: actingUserId, action: 'student_credentials_set', resourceType: 'student', resourceId: studentId });
     return student;
+  }
+
+  /** Owner-only: view the platform as a specific student, for support/testing */
+  async impersonate(studentId: string, actingOwnerId: string, schoolId: string) {
+    const student = await this.prisma.student.findUnique({ where: { id: studentId } });
+    if (!student || student.schoolId !== schoolId) {
+      throw new NotFoundException('الطالب غير موجود في مدرستك');
+    }
+
+    const payload = { sub: student.id, role: 'student', schoolId, teacherId: student.teacherId };
+    const accessToken = this.jwt.sign(payload, { expiresIn: '30m' });
+
+    await this.audit.log({
+      userId: actingOwnerId,
+      action: 'student_impersonated',
+      resourceType: 'student',
+      resourceId: student.id,
+    });
+
+    return { accessToken, student: { id: student.id, name: student.name } };
   }
 }

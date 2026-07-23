@@ -66,6 +66,7 @@ model User {
 
   totpSecret   String?  @map("totp_secret")
   totpEnabled  Boolean  @default(false) @map("totp_enabled")
+  stages       String[] @default([])
 
   createdAt    DateTime @default(now()) @map("created_at")
   lastLoginAt  DateTime? @map("last_login_at")

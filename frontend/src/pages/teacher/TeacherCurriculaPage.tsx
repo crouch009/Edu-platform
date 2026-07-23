@@ -26,17 +26,30 @@ export function TeacherCurriculaPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [extracting, setExtracting] = useState(false);
+
   function load() {
     api.get('/curricula').then(res => setCurricula(res.data));
   }
   useEffect(load, []);
 
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => setText(String(ev.target?.result || ''));
-    reader.readAsText(file);
+    setError('');
+    setExtracting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const { data } = await api.post('/curricula/extract-text', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setText(data.text);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'تعذر استخراج النص من هذا الملف');
+    } finally {
+      setExtracting(false);
+    }
   }
 
   async function handleGenerate() {
@@ -94,8 +107,9 @@ export function TeacherCurriculaPage() {
         <input className="w-full border rounded-lg px-3 py-2 mt-1 mb-4" value={title}
           onChange={e => setTitle(e.target.value)} placeholder="مثال: الوحدة الأولى - الخلية النباتية" />
 
-        <label className="text-sm text-gray-600">ارفع ملف نصي (.txt) أو الصق النص</label>
-        <input type="file" accept=".txt" onChange={handleFileUpload} className="mb-2 block" />
+        <label className="text-sm text-gray-600">ارفع ملف (TXT, PDF, DOCX) أو الصق النص</label>
+        <input type="file" accept=".txt,.pdf,.doc,.docx" onChange={handleFileUpload} className="mb-2 block" disabled={extracting} />
+        {extracting && <p className="text-sm text-gray-500 mb-2">جارٍ استخراج النص من الملف...</p>}
         <textarea className="w-full border rounded-lg px-3 py-2 mb-4" rows={8} value={text}
           onChange={e => setText(e.target.value)} placeholder="الصق نص الدرس هنا..." />
 

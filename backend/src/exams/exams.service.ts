@@ -136,6 +136,51 @@ export class ExamsService {
     return { deleted: true };
   }
 
+  /** Creates questions + an exam from a parsed question-import file, all in one step */
+  async createExamFromImport(
+    title: string,
+    duration: number,
+    questions: { type: 'mcq' | 'truefalse' | 'short'; text: string; options?: string[]; correctAnswer: string }[],
+    teacherId: string,
+    schoolId: string,
+  ) {
+    if (!title?.trim()) throw new BadRequestException('عنوان الامتحان مطلوب');
+    if (!duration || duration < 1) throw new BadRequestException('مدة الامتحان مطلوبة');
+
+    const createdQuestions = await this.prisma.$transaction(
+      questions.map(q =>
+        this.prisma.question.create({
+          data: {
+            type: q.type,
+            text: q.text,
+            options: q.options ?? undefined,
+            correctAnswer: q.correctAnswer,
+            teacherId,
+            schoolId,
+          },
+        }),
+      ),
+    );
+
+    const exam = await this.prisma.exam.create({
+      data: {
+        title,
+        duration,
+        teacherId,
+        schoolId,
+        questions: { connect: createdQuestions.map(q => ({ id: q.id })) },
+      },
+      include: { questions: true },
+    });
+
+    await this.audit.log({
+      userId: teacherId, action: 'exam_imported', resourceType: 'exam', resourceId: exam.id,
+      metadata: { questionCount: createdQuestions.length },
+    });
+
+    return exam;
+  }
+
   async getExamResults(examId: string) {
     return this.prisma.examResult.findMany({
       where: { examId },

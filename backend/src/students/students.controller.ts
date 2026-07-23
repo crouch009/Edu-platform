@@ -62,4 +62,10 @@ export class StudentsController {
   ) {
     return this.studentsService.setLoginCredentials(studentId, dto.email, dto.password, user.sub);
   }
+
+  @Post(':studentId/impersonate')
+  @Roles('owner')
+  impersonate(@Param('studentId') studentId: string, @CurrentUser() user: any) {
+    return this.studentsService.impersonate(studentId, user.sub, user.schoolId);
+  }
 }

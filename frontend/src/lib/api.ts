@@ -16,6 +16,34 @@ export function clearTokens() {
   localStorage.removeItem('user');
 }
 
+// ---------- Impersonation (owner viewing as teacher/parent) ----------
+// Teachers/parents share the same token storage as the owner, so we stash
+// the owner's real tokens aside in sessionStorage (cleared when the tab
+// closes) and restore them when the owner returns to their own account.
+
+export function saveImpersonationOriginal(user: any) {
+  sessionStorage.setItem('impersonationOriginal', JSON.stringify({
+    accessToken: getAccessToken(),
+    refreshToken: getRefreshToken(),
+    user,
+  }));
+}
+export function getImpersonationOriginal(): { accessToken: string; refreshToken: string; user: any } | null {
+  const raw = sessionStorage.getItem('impersonationOriginal');
+  return raw ? JSON.parse(raw) : null;
+}
+export function clearImpersonationOriginal() {
+  sessionStorage.removeItem('impersonationOriginal');
+}
+/** Impersonation tokens are short-lived (30 min) and intentionally have no
+ * refresh token - letting the session simply expire is safer than silently
+ * refreshing back into the owner's identity via a leftover refresh token. */
+export function setImpersonatedSession(accessToken: string, user: any) {
+  localStorage.setItem('accessToken', accessToken);
+  localStorage.removeItem('refreshToken');
+  localStorage.setItem('user', JSON.stringify(user));
+}
+
 api.interceptors.request.use(config => {
   const token = getAccessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;

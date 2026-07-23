@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/AuthContext';
 import { clearTokens } from '../../lib/api';
+import { ImpersonationBanner } from '../../components/ImpersonationBanner';
 
 export function TeacherLayout({ children }: { children: ReactNode }) {
   const { user, setUser } = useAuth();
@@ -15,6 +16,7 @@ export function TeacherLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen">
+      <ImpersonationBanner />
       <div className="bg-navy text-white px-6 py-4 flex justify-between items-center">
         <Link to="/teacher/dashboard" className="font-bold">لوحة المعلم</Link>
         <div className="flex items-center gap-4 text-sm">

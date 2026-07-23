@@ -36,4 +36,9 @@ export class UsersController {
   remove(@Param('id') id: string, @CurrentUser() user: any) {
     return this.usersService.remove(id, user.sub, user.schoolId);
   }
+
+  @Post(':id/impersonate')
+  impersonate(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.usersService.impersonate(id, user.sub, user.schoolId);
+  }
 }

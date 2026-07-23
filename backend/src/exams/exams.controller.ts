@@ -1,10 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { ExamOwnershipGuard } from '../common/guards/exam-ownership.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ExamsService } from './exams.service';
+import { TextExtractionService } from './text-extraction.service';
+import { QuestionImportService } from './question-import.service';
 import {
   CreateCurriculumDto, CreateQuestionDto, GenerateQuestionsDto,
   CreateExamDto,
@@ -13,7 +16,37 @@ import {
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ExamsController {
-  constructor(private examsService: ExamsService) {}
+  constructor(
+    private examsService: ExamsService,
+    private textExtraction: TextExtractionService,
+    private questionImport: QuestionImportService,
+  ) {}
+
+  // ---------- File-based text extraction (for curriculum upload) ----------
+
+  @Post('curricula/extract-text')
+  @Roles('owner', 'teacher')
+  @UseInterceptors(FileInterceptor('file'))
+  async extractText(@UploadedFile() file: Express.Multer.File) {
+    const text = await this.textExtraction.extractText(file);
+    return { text };
+  }
+
+  // ---------- Bulk question import from a formatted file, straight into an exam ----------
+
+  @Post('exams/import')
+  @Roles('owner', 'teacher')
+  @UseInterceptors(FileInterceptor('file'))
+  async importExam(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('title') title: string,
+    @Body('duration') duration: string,
+    @CurrentUser() user: any,
+  ) {
+    const rawText = await this.textExtraction.extractText(file);
+    const parsedQuestions = this.questionImport.parse(rawText);
+    return this.examsService.createExamFromImport(title, Number(duration), parsedQuestions, user.sub, user.schoolId);
+  }
 
   // ---------- Curricula ----------
 

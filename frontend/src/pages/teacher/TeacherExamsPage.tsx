@@ -24,6 +24,12 @@ export function TeacherExamsPage() {
   const [error, setError] = useState('');
   const [openResults, setOpenResults] = useState<string | null>(null);
   const [results, setResults] = useState<ResultRow[]>([]);
+  const [showImport, setShowImport] = useState(false);
+  const [importTitle, setImportTitle] = useState('');
+  const [importDuration, setImportDuration] = useState(20);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState('');
 
   function load() {
     api.get('/exams').then(res => setExams(res.data));
@@ -65,14 +71,88 @@ export function TeacherExamsPage() {
     setOpenResults(examId);
   }
 
+  async function handleImport(e: React.FormEvent) {
+    e.preventDefault();
+    setImportError('');
+    if (!importFile) { setImportError('اختر ملفًا أولًا'); return; }
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      formData.append('title', importTitle);
+      formData.append('duration', String(importDuration));
+      await api.post('/exams/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setShowImport(false);
+      setImportTitle(''); setImportDuration(20); setImportFile(null);
+      load();
+    } catch (err: any) {
+      setImportError(err.response?.data?.message || 'حدث خطأ أثناء الاستيراد');
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <TeacherLayout>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold text-navy">الامتحانات</h1>
-        <button onClick={() => setShowForm(v => !v)} className="bg-accent text-white px-4 py-2 rounded-lg font-semibold text-sm">
-          + امتحان جديد
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowImport(v => !v)} className="border border-navy text-navy px-4 py-2 rounded-lg font-semibold text-sm">
+            استيراد من ملف
+          </button>
+          <button onClick={() => setShowForm(v => !v)} className="bg-accent text-white px-4 py-2 rounded-lg font-semibold text-sm">
+            + امتحان جديد
+          </button>
+        </div>
       </div>
+
+      {showImport && (
+        <form onSubmit={handleImport} className="bg-white rounded-xl shadow-sm p-5 mb-6">
+          <h3 className="font-bold mb-3">استيراد امتحان جاهز من ملف</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            الملف يجب أن يتبع صيغة محددة (كل سؤال في كتلة، مفصولة بسطر من الشرطات <code>-----</code>):
+          </p>
+          <pre className="bg-gray-50 rounded-lg p-3 text-xs mb-4 overflow-auto" dir="ltr">
+{`نوع: mcq
+سؤال: ما هي عاصمة مصر؟
+خيارات: القاهرة | الإسكندرية | الأقصر | أسوان
+الإجابة: القاهرة
+-----
+نوع: truefalse
+سؤال: الأرض كروية الشكل
+الإجابة: صح
+-----
+نوع: short
+سؤال: عرّف التمثيل الضوئي
+الإجابة: عملية تحويل الطاقة الضوئية إلى طاقة كيميائية
+-----`}
+          </pre>
+
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="text-sm text-gray-600">عنوان الامتحان</label>
+              <input className="w-full border rounded-lg px-3 py-2 mt-1" value={importTitle}
+                onChange={e => setImportTitle(e.target.value)} required />
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">المدة (بالدقائق)</label>
+              <input type="number" min={1} className="w-full border rounded-lg px-3 py-2 mt-1"
+                value={importDuration} onChange={e => setImportDuration(Number(e.target.value))} required />
+            </div>
+          </div>
+
+          <label className="text-sm text-gray-600">ملف الأسئلة (TXT, PDF, DOCX)</label>
+          <input type="file" accept=".txt,.pdf,.doc,.docx" className="block mt-1 mb-4"
+            onChange={e => setImportFile(e.target.files?.[0] || null)} required />
+
+          {importError && <p className="text-red-600 text-sm mb-3">{importError}</p>}
+          <button disabled={importing} className="bg-navy text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-60">
+            {importing ? 'جارٍ الاستيراد...' : 'استيراد وإنشاء الامتحان'}
+          </button>
+        </form>
+      )}
 
       {showForm && (
         <form onSubmit={handleCreate} className="bg-white rounded-xl shadow-sm p-5 mb-6">

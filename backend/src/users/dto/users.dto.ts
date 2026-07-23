@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsEnum, IsOptional } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsEnum, IsOptional, IsArray } from 'class-validator';
 
 export enum RoleEnum {
   owner = 'owner',
@@ -23,6 +23,18 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  /** Only meaningful when role = teacher: subjects to create for them right away */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  subjectNames?: string[];
+
+  /** Only meaningful when role = teacher: grade stages they teach (e.g. "ابتدائي", "إعدادي") */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  stages?: string[];
 }
 
 export class UpdateUserDto {
@@ -37,6 +49,11 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  stages?: string[];
 
   @IsOptional()
   @IsEnum(['active', 'suspended'])
